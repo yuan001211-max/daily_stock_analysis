@@ -2,54 +2,53 @@ name: 游资逻辑每日选股
 
 on:
   # 定时触发 - 每天北京时间 17:30 (UTC 09:30)
-    schedule:
-        - cron: '30 9 * * 1-5'     # 周一到周五，UTC 09:30 = 北京时间 17:30
-          # 手动触发
-            workflow_dispatch:
+  schedule:
+    - cron: '30 9 * * 1-5'     # 周一到周五，UTC 09:30 = 北京时间 17:30
+  # 手动触发
+  workflow_dispatch:
 
-            # 并发控制：同一时间只运行一个选股任务
-            concurrency:
-              group: youzi-screening
-                cancel-in-progress: false
+# 并发控制：同一时间只运行一个选股任务
+concurrency:
+  group: youzi-screening
+  cancel-in-progress: false
 
-                jobs:
-                  screen:
-                      runs-on: ubuntu-latest
-                          timeout-minutes: 25
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
 
-                              steps:
-                                    - name: 随机延迟（避免固定时间访问）
-                                            run: sleep $((RANDOM % 45))
+    steps:
+      - name: 随机延迟（避免固定时间访问）
+        run: sleep $((RANDOM % 45))
 
-                                                  - name: 检出代码
-                                                          uses: actions/checkout@v5
+      - name: 检出代码
+        uses: actions/checkout@v5
 
-                                                                - name: 设置 Python 环境
-                                                                        uses: actions/setup-python@v6
-                                                                                with:
-                                                                                          python-version: '3.11'
-                                                                                                    cache: 'pip'
-                                                                                                    
-                                                                                                          - name: 安装依赖
-                                                                                                                  run: |
-                                                                                                                            pip install --upgrade pip
-                                                                                                                                      pip install akshare pandas
-                                                                                                                                      
-                                                                                                                                            - name: 执行游资逻辑选股
-                                                                                                                                                    env:
-                                                                                                                                                              FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-                                                                                                                                                                      run: |
-                                                                                                                                                                                echo "⏰ 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
-                                                                                                                                                                                          echo "📊 开始游资逻辑选股..."
-                                                                                                                                                                                                    cd scripts
-                                                                                                                                                                                                              python youzi_screen_cloud.py
-                                                                                                                                                                                                              
-                                                                                                                                                                                                                    - name: 上传结果
-                                                                                                                                                                                                                            uses: actions/upload-artifact@v6
-                                                                                                                                                                                                                                    if: always()
-                                                                                                                                                                                                                                            with:
-                                                                                                                                                                                                                                                      name: youzi-result-${{ github.run_number }}
-                                                                                                                                                                                                                                                                path: |
-                                                                                                                                                                                                                                                                            scripts/youzi_daily_result.json
-                                                                                                                                                                                                                                                                                      retention-days: 30
-                                                                                                                                                                                                                                                                                      
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install akshare pandas
+
+      - name: 执行游资逻辑选股
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: |
+          echo "⏰ 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
+          echo "📊 开始游资逻辑选股..."
+          cd scripts
+          python youzi_screen_cloud.py
+
+      - name: 上传结果
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: youzi-result-${{ github.run_number }}
+          path: |
+            scripts/youzi_daily_result.json
+          retention-days: 30
